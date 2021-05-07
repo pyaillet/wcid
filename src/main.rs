@@ -1,9 +1,10 @@
+use anyhow::Result;
 use kube::Client;
 use serde_json::json;
 
 use k8s_openapi::api::authorization::v1::SelfSubjectAccessReview;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ResourceAttributes {
     group: String,
     resource: String,
@@ -29,23 +30,23 @@ impl ResourceAttributesBuilder {
         }
     }
 
-    fn namespace(&mut self, namespace: String) -> Self {
-        self.namespace = Some(namespace);
+    fn namespace(&mut self, namespace: &str) -> Self {
+        self.namespace = Some(namespace.to_string());
         self.clone()
     }
 
-    fn group(&mut self, group: String) -> Self {
-        self.group = Some(group);
+    fn group(&mut self, group: &str) -> Self {
+        self.group = Some(group.to_string());
         self.clone()
     }
 
-    fn verb(&mut self, verb: String) -> Self {
-        self.verb = Some(verb);
+    fn verb(&mut self, verb: &str) -> Self {
+        self.verb = Some(verb.to_string());
         self.clone()
     }
 
-    fn resource(&mut self, resource: String) -> Self {
-        self.resource = Some(resource);
+    fn resource(&mut self, resource: &str) -> Self {
+        self.resource = Some(resource.to_string());
         self.clone()
     }
 
@@ -68,15 +69,22 @@ impl ResourceAttributesBuilder {
     }
 }
 
-async fn check(review: &ResourceAttributes) -> bool {
-    let client = match Client::try_default().await {
-        Ok(client) => client,
-        Err(_e) => {
-            panic!("Cannot create client");
-        }
-    };
+#[derive(Debug)]
+enum ResultValue {
+    Ok,
+    Forbidden,
+}
 
-    let ssar: SelfSubjectAccessReview = match serde_json::from_value(json!({
+#[derive(Debug)]
+struct CheckResult {
+    attributes: ResourceAttributes,
+    result: ResultValue,
+}
+
+async fn check(review: &ResourceAttributes) -> Result<CheckResult> {
+    let client = Client::try_default().await?;
+
+    let ssar: SelfSubjectAccessReview = serde_json::from_value(json!({
         "apiVersion": "authorization.k8s.io/v1",
         "kind": "SelfSubjectAccessReview",
         "metadata": {},
@@ -88,39 +96,43 @@ async fn check(review: &ResourceAttributes) -> bool {
               "verb": review.verb,
             },
         }
-    })) {
-        Ok(ssar) => ssar,
-        Err(e) => {
-            println!("Error {:?}", e);
-            return false;
-        }
-    };
+    }))?;
 
-    let result =
-        SelfSubjectAccessReview::create_self_subject_access_review(&ssar, Default::default());
-    match result {
-        Ok((reqp, _)) => {
-            let res = client
-                .request::<SelfSubjectAccessReview>(
-                    http::Request::post(reqp.uri())
-                        .body(reqp.body().clone())
-                        .unwrap(),
-                )
-                .await
-                .unwrap();
-            res.status.unwrap().allowed
-        }
-        Err(_) => return false,
+    let (reqp, _) =
+        SelfSubjectAccessReview::create_self_subject_access_review(&ssar, Default::default())?;
+    let res = client
+        .request::<SelfSubjectAccessReview>(
+            http::Request::post(reqp.uri())
+                .body(reqp.body().clone())
+                .unwrap(),
+        )
+        .await?;
+    if res.status.unwrap().allowed {
+        Ok(CheckResult {
+            attributes: review.clone(),
+            result: ResultValue::Ok,
+        })
+    } else {
+        Ok(CheckResult {
+            attributes: review.clone(),
+            result: ResultValue::Forbidden,
+        })
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let ra = ResourceAttributesBuilder::new()
-        .group("".into())
-        .resource("pods".into())
-        .verb("get".into())
+        .group("")
+        .resource("pods")
+        .verb("get")
         .build();
-    println!("{:?}", check(&ra).await);
+    println!("{:?}", check(&ra).await?);
+    let ra = ResourceAttributesBuilder::new()
+        .group("")
+        .resource("deployments")
+        .verb("get")
+        .build();
+    println!("{:?}", check(&ra).await?);
     Ok(())
 }
