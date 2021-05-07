@@ -8,8 +8,9 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.37"
-serde = { version = "1.0.118", features = ["derive"] }
+serde_json = { version = "1.0.64" }
 tokio = { version = "1.0.1", features = ["full"] }
 kube = "0.52.0"
 kube-runtime = "0.52.0"
-k8s-openapi = { version = "0.11.0", default-features = false, features = ["v1_20"] }
+k8s-openapi = { version = "0.11.0", default-features = false, features = ["api", "v1_20"] }
+http = "0.2.2"
