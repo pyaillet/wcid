@@ -1,5 +1,9 @@
 use anyhow::Result;
+use kube::Api;
 use kube::Client;
+use kube::{api::DynamicObject, Resource};
+use kube::{api::GroupVersionKind, client::Discovery};
+use log::{info, warn};
 use serde_json::json;
 
 use k8s_openapi::api::authorization::v1::SelfSubjectAccessReview;
@@ -120,19 +124,48 @@ async fn check(review: &ResourceAttributes) -> Result<CheckResult> {
     }
 }
 
+async fn list_resources() -> Result<Vec<GroupVersionKind>> {
+    let client = Client::try_default().await?;
+
+    let discovery = Discovery::new(&client).await?;
+    let mut v = Vec::new();
+
+    for group in discovery.groups() {
+        let ver = group.preferred_version_or_guess();
+        for gvk in group.resources_by_version(ver) {
+            v.push(gvk);
+        }
+    }
+    Ok(v)
+}
+
+fn get_verbs() -> Vec<String> {
+    vec![
+        "get", "list", "watch", "delete", "update", "patch", "create",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect()
+}
+
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let ra = ResourceAttributesBuilder::new()
-        .group("")
-        .resource("pods")
-        .verb("get")
-        .build();
-    println!("{:?}", check(&ra).await?);
-    let ra = ResourceAttributesBuilder::new()
-        .group("")
-        .resource("deployments")
-        .verb("get")
-        .build();
-    println!("{:?}", check(&ra).await?);
+async fn main() -> Result<()> {
+    match list_resources().await {
+        Ok(v) => {
+            for gvk in v {
+                for verb in get_verbs() {
+                    let ra = ResourceAttributesBuilder::new()
+                        .group(DynamicObject::group(&gvk).as_ref())
+                        .resource(DynamicObject::kind(&gvk).as_ref())
+                        .verb(&verb)
+                        .build();
+                    println!("{:?}", check(&ra).await);
+                }
+            }
+        }
+        Err(_) => {
+            println!("Unable to list resources");
+        }
+    };
     Ok(())
 }
