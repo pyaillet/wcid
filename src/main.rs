@@ -1,7 +1,7 @@
 use anyhow::Result;
 use k8s_openapi::api::{apps::v1::Deployment, core::v1::Pod};
 use kube::{
-    api::{Api, ListParams},
+    api::{Api, ListParams, ObjectList},
     Client, Resource,
 };
 use serde;
@@ -23,6 +23,11 @@ enum MyResult {
     Ok,
     Forbidden,
     Error,
+}
+
+enum ObjectResult<T: Clone> {
+    Unit(Result<T, kube::Error>),
+    List(Result<ObjectList<T>, kube::Error>),
 }
 
 #[derive(Clone, Debug)]
@@ -49,86 +54,93 @@ impl RequestResult {
     }
 }
 
-macro_rules! test_req_all {
-    ($kind:ident, $verb:ident, $call:ident, $params:expr) => {{
-        let client = Client::try_default().await?;
-
-        let c_api: Api<$kind> = Api::all(client);
-        let req = Request {
-            kind: "$kind".to_string(),
-            verb: Verb::$verb,
-        };
-        let reqres = match c_api.$call($params).await {
-            Ok(_l) => RequestResult::ok(req),
-            Err(kube::Error::Api(ae)) => {
-                if ae.code == 403 {
-                    RequestResult::forbidden(req)
-                } else {
-                    RequestResult::error(req)
-                }
-            }
-            Err(_e) => RequestResult::error(req),
-        };
-        reqres
-    }};
+struct TesterNamespace<T> {
+    object: Option<T>,
+    namespace: String,
 }
 
-macro_rules! test_req_ns {
-    ($ns:expr, $kind:ident, $verb:ident, $call:ident, $params:expr) => {{
-        let client = Client::try_default().await?;
-
-        let c_api: Api<$kind> = Api::namespaced(client, $ns);
-        let req = Request {
-            kind: "$kind".to_string(),
-            verb: Verb::$verb,
-        };
-        let reqres = match c_api.$call($params).await {
-            Ok(_l) => RequestResult::ok(req),
-            Err(kube::Error::Api(ae)) => {
-                if ae.code == 403 {
-                    RequestResult::forbidden(req)
-                } else {
-                    RequestResult::error(req)
-                }
-            }
-            Err(_e) => RequestResult::error(req),
-        };
-        reqres
-    }};
-}
-
-async fn test_get<T: Resource>(name: &str, namespace: &str) -> RequestResult
+impl<T: Resource> TesterNamespace<T>
 where
     <T as Resource>::DynamicType: Default,
     T: Clone,
     T: std::fmt::Debug,
     T: serde::de::DeserializeOwned,
 {
-    let req = Request {
-        kind: std::any::type_name::<T>().to_string(),
-        verb: Verb::Get,
-    };
-    if let Ok(client) = Client::try_default().await {
-        let c_api: Api<T> = Api::namespaced(client, namespace);
-        match c_api.get(name).await {
-            Ok(_l) => RequestResult::ok(req),
-            Err(kube::Error::Api(ae)) => {
+    fn new(ns: &str) -> Self {
+        Self {
+            object: None,
+            namespace: ns.to_string(),
+        }
+    }
+
+    fn name(&self) -> String {
+        match &self.object {
+            Some(o) => o.name(),
+            _ => "NOT FOUND".to_string(),
+        }
+    }
+
+    fn handle_result(req: Request, result: ObjectResult<T>) -> (RequestResult, Option<T>) {
+        match result {
+            ObjectResult::Unit(Ok(_)) => (RequestResult::ok(req), None),
+            ObjectResult::List(Ok(l)) => (RequestResult::ok(req), l.items.first().cloned()),
+            ObjectResult::Unit(Err(kube::Error::Api(ae)))
+            | ObjectResult::List(Err(kube::Error::Api(ae))) => {
                 if ae.code == 403 {
-                    RequestResult::forbidden(req)
+                    (RequestResult::forbidden(req), None)
                 } else {
-                    RequestResult::error(req)
+                    (RequestResult::error(req), None)
                 }
             }
-            Err(_e) => RequestResult::error(req),
+            _ => (RequestResult::error(req), None),
         }
-    } else {
-        RequestResult::error(req)
+    }
+
+    async fn test_all(&mut self) -> Vec<RequestResult> {
+        let mut v = Vec::new();
+        v.push(self.test_list().await);
+        v.push(self.test_get().await);
+        v
+    }
+
+    async fn test_get(&self) -> RequestResult {
+        let req = Request {
+            kind: std::any::type_name::<T>().to_string(),
+            verb: Verb::Get,
+        };
+        if let Ok(client) = Client::try_default().await {
+            let c_api: Api<T> = Api::namespaced(client, &self.namespace);
+            Self::handle_result(req, ObjectResult::Unit(c_api.get(&self.name()).await)).0
+        } else {
+            RequestResult::error(req)
+        }
+    }
+
+    async fn test_list(&mut self) -> RequestResult {
+        let req = Request {
+            kind: std::any::type_name::<T>().to_string(),
+            verb: Verb::List,
+        };
+        if let Ok(client) = Client::try_default().await {
+            let c_api: Api<T> = Api::namespaced(client, &self.namespace);
+            let (result, object) = Self::handle_result(
+                req,
+                ObjectResult::List(c_api.list(&ListParams::default()).await),
+            );
+            self.object = object;
+            result
+        } else {
+            RequestResult::error(req)
+        }
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("{:?}", test_get::<Pod>("name", "default").await);
-    println!("{:?}", test_get::<Deployment>("name", "default").await);
+    let mut tp = TesterNamespace::<Pod>::new("default");
+    println!("{:?}", tp.test_all().await);
+    let mut td = TesterNamespace::<Deployment>::new("default");
+    println!("{:?}", td.test_all().await);
+
     Ok(())
 }
