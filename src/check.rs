@@ -100,10 +100,10 @@ async fn check_resource_verb(
         .request::<SelfSubjectAccessReview>(
             http::Request::post(reqp.uri())
                 .body(reqp.body().clone())
-                .unwrap(),
+                .expect("Unable to prepare HTTP request"),
         )
         .await?;
-    let status = res.status.unwrap();
+    let status = res.status.expect("K8s answered with an empty status");
     Ok(CheckResult {
         verb,
         allowed: status.allowed,
