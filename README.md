@@ -1,6 +1,6 @@
 # WCID: What Can I Do?
 
-![Apache](https://img.shields.io/github/license/pyaillet/wcid)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Nightly](https://github.com/pyaillet/wcid/actions/workflows/nightly.yml/badge.svg)
 
 
