@@ -12,7 +12,7 @@ do with the K8s cluster.
 
 ## Usage
 
-![Usage](./resources/help.png)
+![Usage](./resources/help.png | width=100)
 
 ## Example
 
