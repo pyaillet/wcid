@@ -1373,6 +1373,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "kube-runtime",
+ "lazy_static",
  "log",
  "serde_json",
  "tokio",

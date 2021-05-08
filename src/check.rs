@@ -2,9 +2,15 @@ use anyhow::Result;
 use kube::Client;
 use kube::{api::DynamicObject, Resource};
 use kube::{api::GroupVersionKind, client::Discovery};
+use lazy_static::lazy_static;
 use serde_json::json;
 
 use k8s_openapi::api::authorization::v1::SelfSubjectAccessReview;
+
+lazy_static! {
+    static ref ALL_VERBS: Vec<&'static str> =
+        vec!["Get", "List", "Watch", "Create", "Delete", "Update", "Patch"];
+}
 
 #[derive(Clone, Debug)]
 struct ResourceAttributes {
@@ -127,24 +133,15 @@ async fn list_resources() -> Result<Vec<GroupVersionKind>> {
     Ok(v)
 }
 
-fn get_verbs() -> Vec<String> {
-    vec![
-        "get", "list", "watch", "delete", "update", "patch", "create",
-    ]
-    .into_iter()
-    .map(String::from)
-    .collect()
-}
-
 pub async fn check_all() -> Result<()> {
     match list_resources().await {
         Ok(v) => {
             for gvk in v {
-                for verb in get_verbs() {
+                for verb in ALL_VERBS.iter() {
                     let ra = ResourceAttributesBuilder::new()
                         .group(DynamicObject::group(&gvk).as_ref())
                         .resource(DynamicObject::kind(&gvk).as_ref())
-                        .verb(&verb)
+                        .verb(verb)
                         .build();
                     println!("{:?}", check(&ra).await);
                 }
