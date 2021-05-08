@@ -13,78 +13,23 @@ lazy_static! {
 }
 
 #[derive(Clone, Debug)]
-struct ResourceAttributes {
-    group: String,
-    resource: String,
-    namespace: Option<String>,
-    verb: String,
+struct ResourceCheckResult {
+    gvk: GroupVersionKind,
+    results: Vec<CheckResult>,
 }
 
-#[derive(Clone)]
-struct ResourceAttributesBuilder {
-    group: Option<String>,
-    resource: Option<String>,
-    namespace: Option<String>,
-    verb: Option<String>,
-}
-
-impl ResourceAttributesBuilder {
-    fn new() -> Self {
-        Self {
-            group: None,
-            resource: None,
-            namespace: None,
-            verb: None,
-        }
-    }
-
-    fn namespace(&mut self, namespace: &str) -> Self {
-        self.namespace = Some(namespace.to_string());
-        self.clone()
-    }
-
-    fn group(&mut self, group: &str) -> Self {
-        self.group = Some(group.to_string());
-        self.clone()
-    }
-
-    fn verb(&mut self, verb: &str) -> Self {
-        self.verb = Some(verb.to_string());
-        self.clone()
-    }
-
-    fn resource(&mut self, resource: &str) -> Self {
-        self.resource = Some(resource.to_string());
-        self.clone()
-    }
-
-    fn build(self) -> ResourceAttributes {
-        let group = self
-            .group
-            .expect("Incomplete resource attribute declaration");
-        let resource = self
-            .resource
-            .expect("Incomplete resource attribute declaration");
-        let verb = self
-            .verb
-            .expect("Incomplete resource attribute declaration");
-        ResourceAttributes {
-            group,
-            resource,
-            verb,
-            namespace: self.namespace,
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct CheckResult {
-    attributes: ResourceAttributes,
+    verb: String,
     allowed: bool,
     denied: bool,
 }
 
-async fn check(review: &ResourceAttributes) -> Result<CheckResult> {
+async fn check_resource_verb(
+    gvk: &GroupVersionKind,
+    verb: &str,
+    namespace: Option<String>,
+) -> Result<CheckResult> {
     let client = Client::try_default().await?;
 
     let ssar: SelfSubjectAccessReview = serde_json::from_value(json!({
@@ -93,10 +38,10 @@ async fn check(review: &ResourceAttributes) -> Result<CheckResult> {
         "metadata": {},
         "spec": {
             "resourceAttributes": {
-              "group": review.group,
-              "resource": review.resource,
-              "namespace": review.namespace,
-              "verb": review.verb,
+              "group": DynamicObject::group(gvk),
+              "resource": DynamicObject::kind(gvk),
+              "namespace": namespace,
+              "verb": verb,
             },
         }
     }))?;
@@ -112,9 +57,23 @@ async fn check(review: &ResourceAttributes) -> Result<CheckResult> {
         .await?;
     let status = res.status.unwrap();
     Ok(CheckResult {
-        attributes: review.clone(),
+        verb: verb.to_string(),
         allowed: status.allowed,
         denied: status.denied.unwrap_or(false),
+    })
+}
+
+async fn check_resource(
+    gvk: &GroupVersionKind,
+    namespace: Option<String>,
+) -> Result<ResourceCheckResult> {
+    let mut results: Vec<CheckResult> = Vec::new();
+    for verb in ALL_VERBS.iter() {
+        results.push(check_resource_verb(gvk, verb, namespace.clone()).await?);
+    }
+    Ok(ResourceCheckResult {
+        gvk: gvk.clone(),
+        results,
     })
 }
 
@@ -135,16 +94,9 @@ async fn list_resources() -> Result<Vec<GroupVersionKind>> {
 
 pub async fn check_all() -> Result<()> {
     match list_resources().await {
-        Ok(v) => {
-            for gvk in v {
-                for verb in ALL_VERBS.iter() {
-                    let ra = ResourceAttributesBuilder::new()
-                        .group(DynamicObject::group(&gvk).as_ref())
-                        .resource(DynamicObject::kind(&gvk).as_ref())
-                        .verb(verb)
-                        .build();
-                    println!("{:?}", check(&ra).await);
-                }
+        Ok(resources) => {
+            for gvk in resources {
+                println!("{:?}", check_resource(&gvk, None).await?)
             }
         }
         Err(_) => {
