@@ -1,4 +1,5 @@
 use anyhow::Result;
+use futures::{stream, StreamExt, TryStreamExt};
 use kube::Client;
 use kube::{api::DynamicObject, Resource};
 use kube::{api::GroupVersionKind, client::Discovery};
@@ -64,17 +65,21 @@ async fn check_resource_verb(
 }
 
 async fn check_resource(
-    gvk: &GroupVersionKind,
+    gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<ResourceCheckResult> {
     let mut results: Vec<CheckResult> = Vec::new();
     for verb in ALL_VERBS.iter() {
-        results.push(check_resource_verb(gvk, verb, namespace.clone()).await?);
+        results.push(check_resource_verb(&gvk, verb, namespace.clone()).await?);
     }
     Ok(ResourceCheckResult {
         gvk: gvk.clone(),
         results,
     })
+}
+
+async fn check_resource_global(gvk: GroupVersionKind) -> Result<ResourceCheckResult> {
+    check_resource(gvk, None).await
 }
 
 async fn list_resources() -> Result<Vec<GroupVersionKind>> {
@@ -95,9 +100,12 @@ async fn list_resources() -> Result<Vec<GroupVersionKind>> {
 pub async fn check_all() -> Result<()> {
     match list_resources().await {
         Ok(resources) => {
-            for gvk in resources {
-                println!("{:?}", check_resource(&gvk, None).await?)
-            }
+            let results = stream::iter(resources)
+                .then(check_resource_global)
+                .try_collect::<Vec<ResourceCheckResult>>()
+                .await?;
+
+            println!("{:?}", results);
         }
         Err(_) => {
             println!("Unable to list resources");
