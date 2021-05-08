@@ -3,5 +3,7 @@ mod check;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    check::check_all().await
+    let result = check::check_all().await?;
+    println!("{}", result);
+    Ok(())
 }
