@@ -10,6 +10,14 @@ This project is a learning exercise to use the [Kubernetes](http://kubernetes.io
 It will show you what the current user (from kubeconfig or service account) can
 do with the K8s cluster.
 
+## Usage
+
+![Usage](./resources/help.png)
+
+## Example
+
+![Example](./resources/example.png)
+
+## Credits
 
 Inspired by [rakkess](https://github.com/corneliusweig/rakkess)
-
