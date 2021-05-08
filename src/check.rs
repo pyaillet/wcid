@@ -5,16 +5,14 @@ use futures::future::try_join_all;
 use kube::Client;
 use kube::{api::DynamicObject, Resource};
 use kube::{api::GroupVersionKind, client::Discovery};
-use lazy_static::lazy_static;
 use prettytable::{format, Cell, Row, Table};
 use serde_json::json;
 
 use k8s_openapi::api::authorization::v1::SelfSubjectAccessReview;
 
-lazy_static! {
-    static ref ALL_VERBS: Vec<&'static str> =
-        vec!["Get", "List", "Watch", "Create", "Delete", "Update", "Patch"];
-}
+const ALL_VERBS: [&str; 7] = [
+    "Get", "List", "Watch", "Create", "Delete", "Update", "Patch",
+];
 
 #[derive(Clone, Debug)]
 pub struct Config {

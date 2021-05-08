@@ -16,5 +16,4 @@ k8s-openapi = { version = "0.11.0", default-features = false, features = ["api",
 http = "0.2.2"
 log = "0.4.11"
 futures = "0.3.8"
-lazy_static = "1.4.0"
 prettytable-rs = "^0.8"
