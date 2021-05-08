@@ -1,7 +1,8 @@
 use std::{collections::HashMap, fmt::Display};
 
 use anyhow::Result;
-use futures::{stream, StreamExt, TryStreamExt};
+use async_stream::stream;
+use futures::{future::try_join_all, Future};
 use kube::Client;
 use kube::{api::DynamicObject, Resource};
 use kube::{api::GroupVersionKind, client::Discovery};
@@ -17,9 +18,24 @@ lazy_static! {
 }
 
 #[derive(Clone, Debug)]
-struct ResourceCheckResult {
-    gvk: GroupVersionKind,
-    results: HashMap<&'static str, CheckResult>,
+pub struct Config {
+    pub display_group: bool,
+    pub namespace: Option<String>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            display_group: false,
+            namespace: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ResourceCheckResult {
+    pub gvk: GroupVersionKind,
+    pub results: HashMap<&'static str, CheckResult>,
 }
 
 pub trait GroupVersionKindHelper {
@@ -48,7 +64,7 @@ impl GroupVersionKindHelper for ResourceCheckResult {
 }
 
 #[derive(Clone, Debug)]
-struct CheckResult {
+pub struct CheckResult {
     verb: &'static str,
     allowed: bool,
     denied: bool,
@@ -56,7 +72,8 @@ struct CheckResult {
 
 #[derive(Clone, Debug)]
 pub struct FullResult {
-    results: Vec<ResourceCheckResult>,
+    pub config: Config,
+    pub results: Vec<ResourceCheckResult>,
 }
 
 async fn check_resource_verb(
@@ -98,7 +115,7 @@ async fn check_resource_verb(
 }
 
 async fn check_resource(
-    gvk: GroupVersionKind,
+    gvk: &GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<ResourceCheckResult> {
     let mut results: HashMap<&'static str, CheckResult> = HashMap::new();
@@ -114,7 +131,7 @@ async fn check_resource(
     })
 }
 
-async fn check_resource_global(gvk: GroupVersionKind) -> Result<ResourceCheckResult> {
+async fn check_resource_global(gvk: &GroupVersionKind) -> Result<ResourceCheckResult> {
     check_resource(gvk, None).await
 }
 
@@ -135,52 +152,63 @@ async fn list_resources() -> Result<Vec<GroupVersionKind>> {
 
 pub async fn check_all() -> Result<FullResult> {
     let resources = list_resources().await?;
-    let results = stream::iter(resources)
-        .then(check_resource_global)
-        .try_collect::<Vec<ResourceCheckResult>>()
-        .await?;
-    Ok(FullResult { results })
+    let future_results: Vec<_> = resources
+        .iter()
+        .map(|gvk| check_resource_global(gvk))
+        .collect();
+    let results = try_join_all(future_results).await?;
+
+    Ok(FullResult {
+        config: Config::default(),
+        results,
+    })
 }
 
 impl Display for FullResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut table = Table::new();
+        let mut rows: Vec<Row> = Vec::new();
 
-        let format = format::FormatBuilder::new().padding(1, 1).build();
-        table.set_format(format);
-
-        let mut titles = vec![
-            Cell::new("Group").style_spec("B"),
-            Cell::new("Kind").style_spec("B"),
-        ];
+        let mut titles = Vec::new();
+        if self.config.display_group {
+            titles.push(Cell::new("Group").style_spec("b"));
+        }
+        titles.push(Cell::new("Kind").style_spec("b"));
         titles.extend(
             ALL_VERBS
                 .iter()
-                .map(|v| Cell::new(v).style_spec("B"))
+                .map(|v| Cell::new(v).style_spec("b"))
                 .collect::<Vec<Cell>>(),
         );
-        table.add_row(Row::new(titles));
+        rows.push(Row::new(titles));
 
-        self.results.iter().for_each(|result| {
-            let mut row = vec![Cell::new(&result.group()), Cell::new(&result.kind())];
+        rows.extend(self.results.iter().map(|result| {
+            let mut row = Vec::new();
+            if self.config.display_group {
+                row.push(Cell::new(&result.group()));
+            }
+            row.push(Cell::new(&result.kind()));
             row.extend(
                 ALL_VERBS
                     .iter()
                     .map(|v| match &result.results.get(v) {
                         Some(r) => {
                             if r.allowed {
-                                Cell::new("✔")
+                                Cell::new("✔").style_spec("Fgc")
                             } else {
-                                Cell::new("✖")
+                                Cell::new("✖").style_spec("Frc")
                             }
                         }
-                        None => Cell::new("✖"),
+                        None => Cell::new("✖").style_spec("Frc"),
                     })
                     .collect::<Vec<Cell>>(),
             );
-            table.add_row(Row::new(row));
-        });
+            Row::new(row)
+        }));
 
+        let mut table = Table::init(rows);
+
+        let format = format::FormatBuilder::new().padding(1, 1).build();
+        table.set_format(format);
         table.fmt(f)
     }
 }
