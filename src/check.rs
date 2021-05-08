@@ -1,8 +1,7 @@
 use std::{collections::HashMap, fmt::Display};
 
 use anyhow::Result;
-use async_stream::stream;
-use futures::{future::try_join_all, Future};
+use futures::future::try_join_all;
 use kube::Client;
 use kube::{api::DynamicObject, Resource};
 use kube::{api::GroupVersionKind, client::Discovery};
