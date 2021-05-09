@@ -107,7 +107,10 @@ impl Checker {
 
         Ok(FullResult {
             config: self.config.clone(),
-            items,
+            items: items
+                .into_iter()
+                .filter(|r| !self.config.hide_forbidden || r.items.iter().any(|(_, v)| v.allowed))
+                .collect::<Vec<ResourceCheckResult>>(),
         })
     }
 }
