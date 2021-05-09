@@ -1,6 +1,6 @@
-use super::super::config;
-use super::super::constants;
-use super::super::types;
+use crate::check::config;
+use crate::check::constants;
+use crate::check::types;
 
 use crate::check::types::GroupVersionKindHelper;
 

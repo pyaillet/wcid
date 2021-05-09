@@ -1,11 +1,9 @@
-
 use std::collections::HashMap;
 use std::fmt::Display;
 
 use serde::Serialize;
 
-use super::super::types;
-
+use crate::check::types;
 use crate::check::types::GroupVersionKindHelper;
 
 pub struct Json {
