@@ -1,8 +1,13 @@
 use anyhow::Result;
+
 use futures::future::try_join_all;
+use tokio::task;
+
 use kube::Client;
 use kube::{api::GroupVersionKind, client::Discovery};
+
 use serde_json::json;
+
 use std::collections::HashMap;
 
 use k8s_openapi::api::authorization::v1::SelfSubjectAccessReview;
@@ -55,7 +60,7 @@ async fn check_resource_verb(
 }
 
 async fn check_resource(
-    gvk: &GroupVersionKind,
+    gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<ResourceCheckResult> {
     let mut items: HashMap<&'static str, CheckResult> = HashMap::new();
@@ -99,7 +104,11 @@ impl Checker {
         let resources = list_resources().await?;
         let future_results: Vec<_> = resources
             .iter()
-            .map(|gvk| check_resource(gvk, self.config.namespace.clone()))
+            .map(|gvk| {
+                let ns = self.config.namespace.clone();
+                let gvk = gvk.clone();
+                task::spawn(async { check_resource(gvk, ns).await })
+            })
             .collect();
         let items = try_join_all(future_results).await?;
 
@@ -107,6 +116,7 @@ impl Checker {
             config: self.config.clone(),
             items: items
                 .into_iter()
+                .filter_map(|r| r.ok())
                 .filter(|r| !self.config.hide_forbidden || r.items.iter().any(|(_, v)| v.allowed))
                 .collect::<Vec<ResourceCheckResult>>(),
         })
