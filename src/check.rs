@@ -21,13 +21,12 @@ use crate::types::ResourceCheckResult;
 
 use crate::types::GroupVersionKindHelper;
 
-async fn check_resource_verb(
-    gvk: &GroupVersionKind,
+async fn check_resource_verb<'a>(
+    client: &'a Client,
+    gvk: &'a GroupVersionKind,
     verb: &'static str,
     namespace: Option<String>,
 ) -> Result<CheckResult> {
-    let client = Client::try_default().await?;
-
     let ssar: SelfSubjectAccessReview = serde_json::from_value(json!({
         "apiVersion": "authorization.k8s.io/v1",
         "kind": "SelfSubjectAccessReview",
@@ -60,6 +59,7 @@ async fn check_resource_verb(
 }
 
 async fn check_resource(
+    client: Client,
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<ResourceCheckResult> {
@@ -67,7 +67,7 @@ async fn check_resource(
     for verb in constants::ALL_VERBS.iter() {
         items.insert(
             verb,
-            check_resource_verb(&gvk, verb, namespace.clone()).await?,
+            check_resource_verb(&client, &gvk, verb, namespace.clone()).await?,
         );
     }
     Ok(ResourceCheckResult {
@@ -76,38 +76,41 @@ async fn check_resource(
     })
 }
 
-async fn list_resources() -> Result<Vec<GroupVersionKind>> {
-    let client = Client::try_default().await?;
-
-    let discovery = Discovery::new(&client).await?;
-    let mut v = Vec::new();
-
-    for group in discovery.groups() {
-        let ver = group.preferred_version_or_guess();
-        for gvk in group.resources_by_version(ver) {
-            v.push(gvk);
-        }
-    }
-    Ok(v)
-}
-
 pub struct Checker {
     pub config: config::Config,
+    pub client: Client,
 }
 
 impl Checker {
-    pub fn new(config: config::Config) -> Self {
-        Self { config }
+    pub async fn new(config: config::Config) -> Self {
+        let client = Client::try_default()
+            .await
+            .expect("Unable to create the kube client");
+        Self { config, client }
+    }
+
+    async fn list_resources(&self) -> Result<Vec<GroupVersionKind>> {
+        let discovery = Discovery::new(&self.client).await?;
+        let mut v = Vec::new();
+
+        for group in discovery.groups() {
+            let ver = group.preferred_version_or_guess();
+            for gvk in group.resources_by_version(ver) {
+                v.push(gvk);
+            }
+        }
+        Ok(v)
     }
 
     pub async fn check_all(&self) -> Result<FullResult> {
-        let resources = list_resources().await?;
+        let resources = self.list_resources().await?;
         let future_results: Vec<_> = resources
             .iter()
             .map(|gvk| {
+                let client = self.client.clone();
                 let ns = self.config.namespace.clone();
                 let gvk = gvk.clone();
-                task::spawn(async { check_resource(gvk, ns).await })
+                task::spawn(async { check_resource(client, gvk, ns).await })
             })
             .collect();
         let items = try_join_all(future_results).await?;

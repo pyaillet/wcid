@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
         namespace: opts.namespace,
         hide_forbidden: opts.hide_forbidden,
     };
-    let checker = check::Checker::new(config.clone());
+    let checker = check::Checker::new(config.clone()).await;
     let result = checker.check_all().await?;
     let formatter = formatter::Formatter::new(opts.format, config, result);
     println!("{}", formatter);
