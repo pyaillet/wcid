@@ -12,11 +12,11 @@ do with the K8s cluster.
 
 ## Usage
 
-<img src="./resources/help.png" alt="Usage" width="50%" />
+<img src="./resources/help.png" alt="Usage" width="70%" />
 
 ## Example
 
-![Example](./resources/example.png)
+<img src="./resources/example.png" alt="Example" width="70%" />
 
 ## Credits
 
