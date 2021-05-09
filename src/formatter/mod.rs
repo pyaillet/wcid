@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
-use crate::check::config;
-use crate::check::types;
+use crate::config;
+use crate::types;
 
 mod json;
 mod pretty;

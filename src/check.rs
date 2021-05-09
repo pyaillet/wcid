@@ -1,8 +1,3 @@
-pub mod config;
-pub mod constants;
-pub mod formatter;
-pub mod types;
-
 use anyhow::Result;
 use futures::future::try_join_all;
 use kube::Client;
@@ -12,11 +7,14 @@ use std::collections::HashMap;
 
 use k8s_openapi::api::authorization::v1::SelfSubjectAccessReview;
 
-use types::CheckResult;
-use types::FullResult;
-use types::ResourceCheckResult;
+use crate::config;
+use crate::constants;
 
-use crate::check::types::GroupVersionKindHelper;
+use crate::types::CheckResult;
+use crate::types::FullResult;
+use crate::types::ResourceCheckResult;
+
+use crate::types::GroupVersionKindHelper;
 
 async fn check_resource_verb(
     gvk: &GroupVersionKind,

@@ -1,8 +1,8 @@
-use crate::check::config;
-use crate::check::constants;
-use crate::check::types;
+use crate::config;
+use crate::constants;
+use crate::types;
 
-use crate::check::types::GroupVersionKindHelper;
+use crate::types::GroupVersionKindHelper;
 
 use comfy_table::{presets::NOTHING, Attribute, Cell, Color, Table};
 use std::fmt::Display;

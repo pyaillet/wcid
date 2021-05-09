@@ -3,8 +3,8 @@ use std::fmt::Display;
 
 use serde::Serialize;
 
-use crate::check::types;
-use crate::check::types::GroupVersionKindHelper;
+use crate::types;
+use crate::types::GroupVersionKindHelper;
 
 pub struct Json {
     result: JsonFullResult,

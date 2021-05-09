@@ -1,6 +1,10 @@
 use anyhow::Result;
 use clap::{AppSettings, Clap};
 mod check;
+mod config;
+mod constants;
+mod formatter;
+mod types;
 
 #[derive(Clap)]
 #[clap(
@@ -23,14 +27,14 @@ pub struct Opts {
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
-    let config = check::config::Config {
+    let config = config::Config {
         display_group: opts.display_group,
         namespace: opts.namespace,
         hide_forbidden: opts.hide_forbidden,
     };
     let checker = check::Checker::new(config.clone());
     let result = checker.check_all().await?;
-    let formatter = check::formatter::Formatter::new(opts.format, config, result);
+    let formatter = formatter::Formatter::new(opts.format, config, result);
     println!("{}", formatter);
 
     Ok(())

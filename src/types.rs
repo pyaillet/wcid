@@ -2,7 +2,7 @@ use kube::api::GroupVersionKind;
 use kube::{api::DynamicObject, Resource};
 use std::collections::HashMap;
 
-use crate::check::config;
+use crate::config;
 
 #[derive(Clone, Debug)]
 pub struct ResourceCheckResult {
