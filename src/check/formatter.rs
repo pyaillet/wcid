@@ -120,7 +120,7 @@ pub mod json {
     struct JsonResourceResult {
         group: String,
         kind: String,
-        verb_allowed: HashMap<&'static str, bool>,
+        verb_allowed: HashMap<String, bool>,
     }
 
     #[derive(Serialize)]
@@ -133,8 +133,8 @@ pub mod json {
             let verb_allowed = value
                 .items
                 .into_iter()
-                .map(|(k, v)| (k, v.allowed))
-                .collect::<HashMap<&'static str, bool>>();
+                .map(|(k, v)| (k.to_lowercase(), v.allowed))
+                .collect::<HashMap<String, bool>>();
             Self {
                 group: value.gvk.group(),
                 kind: value.gvk.kind(),
