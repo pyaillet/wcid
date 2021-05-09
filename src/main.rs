@@ -27,7 +27,8 @@ async fn main() -> Result<()> {
     };
     let checker = check::Checker::new(config.clone());
     let result = checker.check_all().await?;
-    let formatter = check::formatter::pretty::Pretty::new(config.clone(), result);
+    let formatter = check::formatter::Formatter::new(opts.format, config, result);
     println!("{}", formatter);
+
     Ok(())
 }
