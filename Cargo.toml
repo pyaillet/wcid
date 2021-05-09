@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.37"
+serde = { version = "1.0.117", features = ["derive"] }
 serde_json = { version = "1.0.64" }
 tokio = { version = "1.0.1", features = ["full"] }
 kube = { git = "https://github.com/clux/kube-rs.git" }
