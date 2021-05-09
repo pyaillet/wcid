@@ -10,17 +10,34 @@ mod types;
 #[clap(
     version = "1.0",
     author = "Pierre-Yves Aillet <pyaillet@gmail.com>",
-    about = "WCID What Can I Do is an RBAC enumerator for Kubernetes"
+    about = "WCID What Can I Do is an RBAC permission enumerator for Kubernetes"
 )]
 #[clap(setting = AppSettings::ColoredHelp)]
 pub struct Opts {
-    #[clap(short, long)]
+    #[clap(
+        short,
+        long,
+        long_about = "Display the API group before the resource kind"
+    )]
     pub display_group: bool,
-    #[clap(short, long)]
+    #[clap(
+        short,
+        long,
+        long_about = "Check the permissions for a specific namespace"
+    )]
     pub namespace: Option<String>,
-    #[clap(short, long, default_value = "pretty")]
+    #[clap(
+        short,
+        long,
+        default_value = "pretty",
+        long_about = "Output format: json or pretty"
+    )]
     pub format: String,
-    #[clap(short = 's', long)]
+    #[clap(
+        short = 's',
+        long,
+        long_about = "Only show resources for which an action is allowed"
+    )]
     pub hide_forbidden: bool,
 }
 
