@@ -28,9 +28,9 @@ impl From<types::ResourceCheckResult> for JsonResourceResult {
             .into_iter()
             .map(|(k, v)| (k.to_lowercase(), v.allowed))
             .collect::<HashMap<String, bool>>();
-        let resource = value.resource.clone();
+        let resource = value.resource;
         Self {
-            group: resource.group.unwrap_or("".to_string()),
+            group: resource.group.unwrap_or_else(|| String::from("")),
             kind: resource.kind,
             verb_allowed,
         }

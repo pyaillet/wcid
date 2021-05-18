@@ -41,7 +41,9 @@ impl Display for Pretty {
             let mut row: Vec<Cell> = Vec::with_capacity(column_count);
             let resource = result.resource.clone();
             if self.config.display_group {
-                row.push(Cell::new(resource.group.unwrap_or("".to_string())));
+                row.push(Cell::new(
+                    resource.group.unwrap_or_else(|| String::from("")),
+                ));
             }
             row.push(Cell::new(resource.kind));
             row.extend(

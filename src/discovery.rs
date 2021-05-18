@@ -5,7 +5,7 @@ use kube::Client;
 
 fn extract_version_group(group_version: String) -> (Option<String>, Option<String>) {
     let gv = group_version
-        .split("/")
+        .split('/')
         .map(|s| s.to_string())
         .collect::<Vec<String>>();
     if gv.len() > 1 {
@@ -57,7 +57,7 @@ pub async fn discover_resources(client: &Client) -> Result<Vec<APIResource>> {
                 })
                 .collect::<Vec<APIResource>>()
         })
-        .filter(|r| r.name.find("/").is_none())
+        .filter(|r| r.name.find('/').is_none())
         .collect::<Vec<APIResource>>();
     Ok(all_resources)
 }
