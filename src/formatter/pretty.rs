@@ -1,5 +1,4 @@
 use crate::config;
-use crate::constants;
 use crate::types;
 
 use comfy_table::{presets::NOTHING, Attribute, Cell, Color, Table};
@@ -21,8 +20,7 @@ impl Display for Pretty {
         let mut table = Table::new();
         table.load_preset(NOTHING);
 
-        let column_count =
-            constants::ALL_VERBS.len() + if self.config.display_group { 2 } else { 1 };
+        let column_count = self.config.verbs.len() + if self.config.display_group { 2 } else { 1 };
 
         let mut titles = Vec::with_capacity(column_count);
         if self.config.display_group {
@@ -30,7 +28,8 @@ impl Display for Pretty {
         }
         titles.push(Cell::new("Kind").add_attribute(Attribute::Bold));
         titles.extend(
-            constants::ALL_VERBS
+            self.config
+                .verbs
                 .iter()
                 .map(|v| Cell::new(v).add_attribute(Attribute::Bold))
                 .collect::<Vec<Cell>>(),
@@ -47,7 +46,8 @@ impl Display for Pretty {
             }
             row.push(Cell::new(resource.kind));
             row.extend(
-                constants::ALL_VERBS
+                self.config
+                    .verbs
                     .iter()
                     .map(|v| match &result.items.get(v) {
                         Some(r) => {

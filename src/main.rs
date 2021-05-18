@@ -48,6 +48,7 @@ async fn main() -> Result<()> {
         display_group: opts.display_group,
         namespace: opts.namespace,
         hide_forbidden: opts.hide_forbidden,
+        verbs: constants::DEFAULT_VERBS.to_vec(),
     };
     let checker = check::Checker::new(config.clone()).await;
     let result = checker.check_all().await?;
