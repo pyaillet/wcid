@@ -1,3 +1,10 @@
-pub const ALL_VERBS: [&str; 7] = [
-    "Get", "List", "Watch", "Create", "Delete", "Update", "Patch",
+pub const ALL_VERBS: [&str; 8] = [
+    "Get",
+    "List",
+    "Watch",
+    "Create",
+    "Delete",
+    "DeleteCollection",
+    "Update",
+    "Patch",
 ];

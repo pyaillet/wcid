@@ -4,7 +4,6 @@ use std::fmt::Display;
 use serde::Serialize;
 
 use crate::types;
-use crate::types::GroupVersionKindHelper;
 
 pub struct Json {
     result: JsonFullResult,
@@ -29,9 +28,10 @@ impl From<types::ResourceCheckResult> for JsonResourceResult {
             .into_iter()
             .map(|(k, v)| (k.to_lowercase(), v.allowed))
             .collect::<HashMap<String, bool>>();
+        let resource = value.resource;
         Self {
-            group: value.gvk.group(),
-            kind: value.gvk.kind(),
+            group: resource.group.unwrap_or_else(|| String::from("")),
+            kind: resource.kind,
             verb_allowed,
         }
     }

@@ -3,6 +3,7 @@ use clap::{AppSettings, Clap};
 mod check;
 mod config;
 mod constants;
+mod discovery;
 mod formatter;
 mod types;
 
