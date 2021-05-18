@@ -4,26 +4,26 @@ use futures::future::try_join_all;
 use tokio::task;
 
 use kube::Client;
-use kube::{api::GroupVersionKind, client::Discovery};
 
 use serde_json::json;
 
 use std::collections::HashMap;
 
-use k8s_openapi::api::authorization::v1::SelfSubjectAccessReview;
+use k8s_openapi::{
+    api::authorization::v1::SelfSubjectAccessReview, apimachinery::pkg::apis::meta::v1::APIResource,
+};
 
 use crate::config;
 use crate::constants;
+use crate::discovery;
 
 use crate::types::CheckResult;
 use crate::types::FullResult;
 use crate::types::ResourceCheckResult;
 
-use crate::types::GroupVersionKindHelper;
-
 async fn check_resource_verb<'a>(
     client: &'a Client,
-    gvk: &'a GroupVersionKind,
+    resource: &'a APIResource,
     verb: &'static str,
     namespace: Option<String>,
 ) -> Result<CheckResult> {
@@ -33,8 +33,8 @@ async fn check_resource_verb<'a>(
         "metadata": {},
         "spec": {
             "resourceAttributes": {
-              "group": gvk.group(),
-              "resource": gvk.plural(),
+              "group": resource.group,
+              "resource": resource.name,
               "namespace": namespace,
               "verb": verb.to_ascii_lowercase(),
             },
@@ -60,18 +60,21 @@ async fn check_resource_verb<'a>(
 
 async fn check_resource(
     client: Client,
-    gvk: GroupVersionKind,
+    resource: APIResource,
     namespace: Option<String>,
 ) -> Result<ResourceCheckResult> {
     let mut items: HashMap<&'static str, CheckResult> = HashMap::new();
-    for verb in constants::ALL_VERBS.iter() {
+    for verb in constants::ALL_VERBS
+        .iter()
+        .filter(|v| resource.verbs.contains(&v.to_ascii_lowercase()))
+    {
         items.insert(
             verb,
-            check_resource_verb(&client, &gvk, verb, namespace.clone()).await?,
+            check_resource_verb(&client, &resource, verb, namespace.clone()).await?,
         );
     }
     Ok(ResourceCheckResult {
-        gvk: gvk.clone(),
+        resource: resource.clone(),
         items,
     })
 }
@@ -89,28 +92,15 @@ impl Checker {
         Self { config, client }
     }
 
-    async fn list_resources(&self) -> Result<Vec<GroupVersionKind>> {
-        let discovery = Discovery::new(&self.client).await?;
-        let mut v = Vec::new();
-
-        for group in discovery.groups() {
-            let ver = group.preferred_version_or_guess();
-            for gvk in group.resources_by_version(ver) {
-                v.push(gvk);
-            }
-        }
-        Ok(v)
-    }
-
     pub async fn check_all(&self) -> Result<FullResult> {
-        let resources = self.list_resources().await?;
+        let resources: Vec<APIResource> = discovery::discover_resources(&self.client).await?;
         let future_results: Vec<_> = resources
             .iter()
-            .map(|gvk| {
+            .map(|resource| {
                 let client = self.client.clone();
                 let ns = self.config.namespace.clone();
-                let gvk = gvk.clone();
-                task::spawn(async { check_resource(client, gvk, ns).await })
+                let resource = resource.clone();
+                task::spawn(async { check_resource(client, resource, ns).await })
             })
             .collect();
         let items = try_join_all(future_results).await?;

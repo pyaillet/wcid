@@ -2,8 +2,6 @@ use crate::config;
 use crate::constants;
 use crate::types;
 
-use crate::types::GroupVersionKindHelper;
-
 use comfy_table::{presets::NOTHING, Attribute, Cell, Color, Table};
 use std::fmt::Display;
 
@@ -23,7 +21,8 @@ impl Display for Pretty {
         let mut table = Table::new();
         table.load_preset(NOTHING);
 
-        let column_count = if self.config.display_group { 9 } else { 8 };
+        let column_count =
+            constants::ALL_VERBS.len() + if self.config.display_group { 2 } else { 1 };
 
         let mut titles = Vec::with_capacity(column_count);
         if self.config.display_group {
@@ -40,10 +39,11 @@ impl Display for Pretty {
 
         self.result.items.iter().for_each(|result| {
             let mut row: Vec<Cell> = Vec::with_capacity(column_count);
+            let resource = result.resource.clone();
             if self.config.display_group {
-                row.push(Cell::new(&result.group()));
+                row.push(Cell::new(resource.group.unwrap_or("".to_string())));
             }
-            row.push(Cell::new(&result.kind()));
+            row.push(Cell::new(resource.kind));
             row.extend(
                 constants::ALL_VERBS
                     .iter()
@@ -55,10 +55,7 @@ impl Display for Pretty {
                                 Cell::new("✖").fg(Color::Red)
                             }
                         }
-                        None => {
-                            println!("Not found");
-                            Cell::new("✖").fg(Color::Red)
-                        }
+                        None => Cell::new(""),
                     })
                     .collect::<Vec<Cell>>(),
             );
