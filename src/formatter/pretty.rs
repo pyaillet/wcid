@@ -50,7 +50,7 @@ impl Display for Pretty {
                     .map(|v| match &result.items.get(v) {
                         Some(r) => {
                             if r.allowed {
-                                Cell::new("✔").fg(Color::Green)
+                                Cell::new("✔").fg(Color::AnsiValue(34))
                             } else {
                                 Cell::new("✖").fg(Color::Red)
                             }
