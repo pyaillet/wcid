@@ -18,6 +18,19 @@ do with the K8s cluster.
 
 <img src="./resources/example.png" alt="Example" width="70%" />
 
+## Note
+
+The default settings of this tool use native-tls.
+However, the current implementation of [native-tls](https://crates.io/crates/native-tls) does [not support TLS 1.3](https://github.com/sfackler/rust-native-tls/issues/140)
+
+There is a feature to activate [rustls-tls](https://github.com/ctz/rustls) which uses TLS 1.3 and performs better.
+However it curently does [not support validation of certificate presenting an IP address](https://github.com/ctz/rustls/issues/184). So be aware that using rustls-tls feature will fail when your kubernetes API server certificate presents an IP address.
+If you want to use `rustls`, build the project with:
+
+```shell
+cargo build --release --no-default-features --features rustls-tls
+```
+
 ## Credits
 
 Inspired by [rakkess](https://github.com/corneliusweig/rakkess)
