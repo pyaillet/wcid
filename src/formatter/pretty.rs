@@ -1,7 +1,7 @@
 use crate::config;
 use crate::types;
 
-use comfy_table::{presets::NOTHING, Attribute, Cell, Color, Table};
+use comfy_table::{presets::NOTHING, Attribute, Cell, CellAlignment, Color, Table};
 use std::fmt::Display;
 
 pub struct Pretty {
@@ -64,9 +64,13 @@ impl Display for Pretty {
                     .map(|v| match &result.items.get(v) {
                         Some(r) => {
                             if r.allowed {
-                                Cell::new("✔").fg(Color::AnsiValue(34))
+                                Cell::new("✔")
+                                    .fg(Color::AnsiValue(34))
+                                    .set_alignment(CellAlignment::Center)
                             } else {
-                                Cell::new("✖").fg(Color::Red)
+                                Cell::new("✖")
+                                    .fg(Color::Red)
+                                    .set_alignment(CellAlignment::Center)
                             }
                         }
                         None => Cell::new(""),
