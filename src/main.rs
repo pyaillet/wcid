@@ -53,8 +53,7 @@ fn handle_verbs(verbs: Option<String>) -> Vec<&'static str> {
             .iter()
             .filter(|verb| {
                 s.split(',')
-                    .find(|supplied_verb| supplied_verb.to_lowercase() == verb.to_lowercase())
-                    .is_some()
+                    .any(|supplied_verb| supplied_verb.to_lowercase() == verb.to_lowercase())
             })
             .cloned()
             .collect::<Vec<&'static str>>(),
