@@ -40,12 +40,12 @@ impl Display for Pretty {
         resource_result.sort_by(|a, b| {
             if self.config.display_group {
                 match a.resource.group.cmp(&b.resource.group) {
-                    std::cmp::Ordering::Equal => a.resource.kind.cmp(&b.resource.kind),
+                    std::cmp::Ordering::Equal => a.resource.name.cmp(&b.resource.name),
                     std::cmp::Ordering::Less => std::cmp::Ordering::Less,
                     std::cmp::Ordering::Greater => std::cmp::Ordering::Greater,
                 }
             } else {
-                a.resource.kind.cmp(&b.resource.kind)
+                a.resource.name.cmp(&b.resource.name)
             }
         });
         resource_result.iter().for_each(|result| {
@@ -56,7 +56,11 @@ impl Display for Pretty {
                     resource.group.unwrap_or_else(|| String::from("")),
                 ));
             }
-            row.push(Cell::new(resource.kind));
+            row.push(Cell::new(if self.config.subresources {
+                resource.name
+            } else {
+                resource.kind
+            }));
             row.extend(
                 self.config
                     .verbs

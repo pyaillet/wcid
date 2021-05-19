@@ -57,7 +57,6 @@ pub async fn discover_resources(client: &Client) -> Result<Vec<APIResource>> {
                 })
                 .collect::<Vec<APIResource>>()
         })
-        .filter(|r| r.name.find('/').is_none())
         .collect::<Vec<APIResource>>();
     Ok(all_resources)
 }
