@@ -45,6 +45,8 @@ pub struct Opts {
         long_about = "Only query for a subset of verbs (separated by commas)"
     )]
     pub verbs: Option<String>,
+    #[clap(short = 'S', long, long_about = "Show subresources")]
+    pub show_subresources: bool,
 }
 
 fn handle_verbs(verbs: Option<String>) -> Vec<&'static str> {
@@ -69,6 +71,7 @@ async fn main() -> Result<()> {
         namespace: opts.namespace,
         hide_forbidden: opts.hide_forbidden,
         verbs: handle_verbs(opts.verbs),
+        subresources: opts.show_subresources,
     };
     let checker = check::Checker::new(config.clone()).await;
     let result = checker.check_all().await?;
