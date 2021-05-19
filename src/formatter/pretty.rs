@@ -36,7 +36,19 @@ impl Display for Pretty {
         );
         table.set_header(titles);
 
-        self.result.items.iter().for_each(|result| {
+        let mut resource_result = self.result.items.clone();
+        resource_result.sort_by(|a, b| {
+            if self.config.display_group {
+                match a.resource.group.cmp(&b.resource.group) {
+                    std::cmp::Ordering::Equal => a.resource.kind.cmp(&b.resource.kind),
+                    std::cmp::Ordering::Less => std::cmp::Ordering::Less,
+                    std::cmp::Ordering::Greater => std::cmp::Ordering::Greater,
+                }
+            } else {
+                a.resource.kind.cmp(&b.resource.kind)
+            }
+        });
+        resource_result.iter().for_each(|result| {
             let mut row: Vec<Cell> = Vec::with_capacity(column_count);
             let resource = result.resource.clone();
             if self.config.display_group {
