@@ -36,13 +36,13 @@ pub struct Opts {
     #[clap(
         short = 's',
         long,
-        long_about = "Only show resources for which an action is allowed"
+        long_about = "Only show resources for which at least an action is allowed"
     )]
     pub hide_forbidden: bool,
     #[clap(
         short = 'V',
         long,
-        long_about = "Only query for a subset of verbs (separated by commas)"
+        long_about = "Query for a defined set of verbs (separated by commas)\n[default: Get, Create, Delete, Update]\nAvailable: Get, List, Watch, Create, Delete, DeleteCollection, Update, Patch"
     )]
     pub verbs: Option<String>,
     #[clap(short = 'S', long, long_about = "Show subresources")]
