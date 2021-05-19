@@ -96,7 +96,7 @@ impl Checker {
         let resources: Vec<APIResource> = discovery::discover_resources(&self.client).await?;
         let future_results: Vec<_> = resources
             .iter()
-            .filter(|resource| self.config.subresources || resource.name.find('/').is_some())
+            .filter(|resource| self.config.subresources || resource.name.find('/').is_none())
             .map(|resource| {
                 let client = self.client.clone();
                 let ns = self.config.namespace.clone();
