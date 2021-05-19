@@ -39,6 +39,26 @@ pub struct Opts {
         long_about = "Only show resources for which an action is allowed"
     )]
     pub hide_forbidden: bool,
+    #[clap(
+        short = 'V',
+        long,
+        long_about = "Only query for a subset of verbs (separated by commas)"
+    )]
+    pub verbs: Option<String>,
+}
+
+fn handle_verbs(verbs: Option<String>) -> Vec<&'static str> {
+    match verbs {
+        Some(s) => constants::ALL_VERBS
+            .iter()
+            .filter(|verb| {
+                s.split(',')
+                    .any(|supplied_verb| supplied_verb.to_lowercase() == verb.to_lowercase())
+            })
+            .cloned()
+            .collect::<Vec<&'static str>>(),
+        None => constants::DEFAULT_VERBS.to_vec(),
+    }
 }
 
 #[tokio::main]
@@ -48,6 +68,7 @@ async fn main() -> Result<()> {
         display_group: opts.display_group,
         namespace: opts.namespace,
         hide_forbidden: opts.hide_forbidden,
+        verbs: handle_verbs(opts.verbs),
     };
     let checker = check::Checker::new(config.clone()).await;
     let result = checker.check_all().await?;
