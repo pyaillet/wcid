@@ -26,6 +26,7 @@ async fn check_resource_verb<'a>(
     resource: &'a APIResource,
     verb: &'static str,
     namespace: Option<String>,
+    impersonate: Option<String>,
 ) -> Result<CheckResult> {
     let ssar: SelfSubjectAccessReview = serde_json::from_value(json!({
         "apiVersion": "authorization.k8s.io/v1",
@@ -43,12 +44,17 @@ async fn check_resource_verb<'a>(
 
     let (reqp, _) =
         SelfSubjectAccessReview::create_self_subject_access_review(&ssar, Default::default())?;
+    let mut request_builder = http::Request::post(reqp.uri());
+    request_builder = if let Some(impersonate) = impersonate {
+        request_builder.header("Impersonate-User", impersonate)
+    } else {
+        request_builder
+    };
+    let http_request = request_builder
+        .body(reqp.body().clone())
+        .expect("Unable to prepare HTTP request");
     let res = client
-        .request::<SelfSubjectAccessReview>(
-            http::Request::post(reqp.uri())
-                .body(reqp.body().clone())
-                .expect("Unable to prepare HTTP request"),
-        )
+        .request::<SelfSubjectAccessReview>(http_request)
         .await?;
     let status = res.status.expect("K8s answered with an empty status");
     Ok(CheckResult {
@@ -62,6 +68,7 @@ async fn check_resource(
     client: Client,
     resource: APIResource,
     namespace: Option<String>,
+    impersonate: Option<String>,
 ) -> Result<ResourceCheckResult> {
     let mut items: HashMap<&'static str, CheckResult> = HashMap::new();
     for verb in constants::ALL_VERBS
@@ -70,7 +77,14 @@ async fn check_resource(
     {
         items.insert(
             verb,
-            check_resource_verb(&client, &resource, verb, namespace.clone()).await?,
+            check_resource_verb(
+                &client,
+                &resource,
+                verb,
+                namespace.clone(),
+                impersonate.clone(),
+            )
+            .await?,
         );
     }
     Ok(ResourceCheckResult {
@@ -100,8 +114,9 @@ impl Checker {
             .map(|resource| {
                 let client = self.client.clone();
                 let ns = self.config.namespace.clone();
+                let impersonate = self.config.impersonate.clone();
                 let resource = resource.clone();
-                task::spawn(async { check_resource(client, resource, ns).await })
+                task::spawn(async { check_resource(client, resource, ns, impersonate).await })
             })
             .collect();
         let items = try_join_all(future_results).await?;
