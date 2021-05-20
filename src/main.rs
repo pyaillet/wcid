@@ -8,10 +8,7 @@ mod formatter;
 mod types;
 
 #[derive(Clap)]
-#[clap(
-    version = "0.1",
-    about = "WCID What Can I Do is an RBAC permission enumerator for Kubernetes"
-)]
+#[clap(about = "WCID What Can I Do is an RBAC permission enumerator for Kubernetes")]
 #[clap(setting = AppSettings::ColoredHelp)]
 pub struct Opts {
     #[clap(
