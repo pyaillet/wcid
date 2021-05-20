@@ -5,4 +5,5 @@ pub struct Config {
     pub hide_forbidden: bool,
     pub subresources: bool,
     pub verbs: Vec<&'static str>,
+    pub impersonate: Option<String>,
 }
