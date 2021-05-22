@@ -39,10 +39,10 @@ impl Display for Pretty {
         let mut resource_result = self.result.items.clone();
         resource_result.sort_by(|a, b| {
             if self.config.display_group {
-                match a.resource.group.cmp(&b.resource.group) {
+                let group_cmp = a.resource.group.cmp(&b.resource.group);
+                match group_cmp {
                     std::cmp::Ordering::Equal => a.resource.name.cmp(&b.resource.name),
-                    std::cmp::Ordering::Less => std::cmp::Ordering::Less,
-                    std::cmp::Ordering::Greater => std::cmp::Ordering::Greater,
+                    _ => group_cmp,
                 }
             } else {
                 a.resource.name.cmp(&b.resource.name)
